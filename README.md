@@ -65,7 +65,7 @@ magpie accounts codex
 ### 作为 Magpie 插件安装
 
 ```powershell
-magpie plugin add ./magpie-gptfree
+magpie plugin add .
 magpie plugin login gptfree-import
 ```
 

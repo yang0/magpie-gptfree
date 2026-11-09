@@ -75,7 +75,7 @@ test("native pick cancel returns failure without storing fake login", async () =
     picker: async () => "",
     server: async () => { throw new Error("server should not start"); },
   });
-  assert.deepEqual(method.type, "api");
+  assert.deepEqual(method.type, "oauth");
   const result = await method.authorize();
   assert.equal(result.type, "failed");
   assert.match(result.error, /取消/);

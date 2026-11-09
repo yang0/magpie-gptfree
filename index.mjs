@@ -24,7 +24,12 @@ export const GPTFreeImportPlugin = async () => ({
       type: "oauth",
       label: "TXT 批量导入 ChatGPT/Codex 账号",
       prompts: [
-        { type: "text", key: "file", message: "TXT 文件完整路径（每行 邮箱----密码----2FA密钥）" },
+        { type: "text", key: "file", message: "TXT 完整路径（可附邮箱链接或 JWT 第四字段）" },
+        { type: "select", key: "mode", message: "导入到哪里？",
+          options: [
+            { label: "独立 Token 号池（有效 Token 优先复用，推荐）", value: "pool" },
+            { label: "Magpie 原生 Codex 账号（需完整 OAuth）", value: "native" },
+          ] },
         { type: "select", key: "consent", message: "我有这些账号的使用/管理授权",
           options: [{ label: "是，我确认", value: "yes" }, { label: "取消", value: "no" }] },
       ],
@@ -35,10 +40,11 @@ export const GPTFreeImportPlugin = async () => ({
           return { type: "failed", error: "请输入 TXT 文件完整路径" };
         const task = runBatch({
           file: inputs.file.trim(), consent: true, signal,
+          mode: inputs.mode === "native" ? "native" : "pool",
         }).then((r) => ({ r }), (err) => ({ err }));
         return {
           url: "",
-          instructions: "将打开可见的 Chrome/Edge 浏览器。支持自动填写密码和 TOTP；遇到安全验证请自行操作。导入结果在 Codex/ChatGPT 原生账号列表查看。大量账号建议使用命令行工具。",
+          instructions: "导入 Token 号池时，JWT 需先通过 Codex 服务器验证，失效账号会打开 Chrome/Edge 用 OAuth + TOTP 重新登录；有安全验证请自行完成。号池模式导入后再登录 gptfree-pool 供应商；原生模式在 ChatGPT/Codex 账号列表查看。",
           opened: true,
           method: "auto",
           async callback() {
@@ -50,7 +56,7 @@ export const GPTFreeImportPlugin = async () => ({
             return {
               type: "success", key: "import-helper-complete",
               accountId: "GPTFree Import Helper",
-              metadata: { imported: r.added, failed: r.failed.length },
+              metadata: { imported: r.added, reused: r.reused, failed: r.failed.length, mode: r.mode },
             };
           },
         };

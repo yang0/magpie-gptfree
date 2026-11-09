@@ -38,13 +38,13 @@ async function harness({ batch } = {}) {
   return { service, base, page, api, close: () => service.close() };
 }
 
-test("Providers uses a keyless OS file dialog, NOT an OAuth browser URL", async () => {
+test("Providers uses a URL-less OAuth OS file dialog, NOT an importer browser URL", async () => {
   const plugin = await GPTFreePoolPlugin();
   assert.equal(plugin.auth.provider, "gptfree-pool");
   assert.equal(plugin.auth.single, true);
   assert.equal(plugin.auth.methods.length, 1);
-  assert.equal(plugin.auth.methods[0].type, "api");
-  assert.equal(plugin.auth.methods[0].keyless, true);
+  assert.equal(plugin.auth.methods[0].type, "oauth");
+  assert.equal(plugin.auth.methods[0].keyless, undefined);
   assert.equal(plugin.auth.methods[0].label.includes("TXT"), true);
   assert.equal(typeof plugin.auth.methods[0].authorize, "function");
 });
@@ -98,7 +98,11 @@ test("native provider chooser starts batch in Magpie host and signs in after fir
       picker: async () => file.path,
       server: async () => h.service,
     });
-    const result = await method.authorize();
+    const started = await method.authorize();
+    assert.equal(started.url, "");
+    assert.equal(started.opened, true);
+    assert.equal(started.method, "auto");
+    const result = await started.callback();
     assert.equal(result.type, "success");
     assert.equal(result.key, POOL_MARKER);
     assert(!JSON.stringify(result).includes("password"));
@@ -128,7 +132,9 @@ test("native provider all-failed import never marks Magpie as signed in", async 
     const method = nativeImportMethod({
       picker: async () => file.path, server: async () => h.service,
     });
-    const result = await method.authorize();
+    const started = await method.authorize();
+    assert.equal(started.url, "");
+    const result = await started.callback();
     assert.equal(result.type, "failed");
     assert.match(result.error, /没有账号成功入池/);
   } finally { await h.close(); await file.close(); }

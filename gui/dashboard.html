@@ -62,9 +62,11 @@
               <span class="mode-desc">全部通过 OAuth 获取完整刷新凭证后导入 Magpie 内置账号列表。</span>
             </label>
           </div>
+          <label class="consent"><input type="checkbox" id="interactiveLogin"> <span>允许打开官方登录窗口（仅当后台登录需要人工验证时勾选）</span></label>
+          <p class="footnote">默认后台自动填写邮箱、密码和 TOTP，不弹出网页窗口；验证码、短信或其他额外安全验证不会被绕过。</p>
           <label class="consent"><input type="checkbox" id="consent"> <span>我确认这些账号由我本人持有或已获授权管理。</span></label>
           <div class="actions"><button id="startButton" class="btn primary" type="button" disabled>开始批量导入</button>
-            <span class="muted tiny">登录时可能打开 Chrome / Edge。验证码或额外安全确认需人工完成。</span></div>
+            <span class="muted tiny">默认不弹出浏览器；如选择人工验证模式，才会打开官方登录窗口。</span></div>
         </div>
         <div id="progressBox" class="hidden">
           <div class="section-head with-top"><h2><span class="step">04</span> 导入进度</h2>

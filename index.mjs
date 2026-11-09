@@ -3,7 +3,6 @@
  * GUI entry runs in the plugin-host and serves its own sandboxed page.
  * Import is initiated with Magpie Plugins -> GPTFree Account Import.
  */
-import { listPool } from "./lib/pool-vault.mjs";
 import { CODEX_BASE, discoverPoolModels, poolFetch } from "./lib/codex-pool.mjs";
 import { GUI_PORT, startGuiServer } from "./lib/gui-service.mjs";
 import { createPoolConnector, POOL_MARKER } from "./lib/pool-connection.mjs";

@@ -14,6 +14,7 @@ const showHelp = () => {
   --magpie "C:\\path\\to\\magpie.exe"    指定 Magpie CLI
   --proxy http://127.0.0.1:7890        指定可信的 HTTP(S) 代理
   --dry-run                            只检查 TXT 格式（不登录）
+  --mode native|pool                   native=Magpie 原生导入；pool=短期 Token 号池
   --i-own-these-accounts               确认账号归属/管理权
   --help                               查看帮助
 
@@ -30,6 +31,7 @@ else {
     const result = await runBatch({
       file,
       magpie: get("--magpie") || "magpie",
+      mode: get("--mode") || "native",
       proxy: get("--proxy") || "",
       dryRun: args.includes("--dry-run"),
       consent: args.includes("--i-own-these-accounts"),
@@ -43,7 +45,7 @@ else {
       console.log(`有效 ${result.total}，重复 ${result.duplicates}，错误 ${result.invalid.length}`);
       if (result.invalid.length) process.exitCode = 2;
     } else {
-      console.log(`已加入 Magpie: ${result.added}/${result.total}; 失败: ${result.failed.length}，重复: ${result.duplicates}`);
+      console.log(`模式: ${result.mode}; 成功: ${result.added}/${result.total}; 复用有效 Token: ${result.reused}; 失败: ${result.failed.length}，重复: ${result.duplicates}`);
       if (result.failed.length) process.exitCode = 1;
     }
   } catch (err) {

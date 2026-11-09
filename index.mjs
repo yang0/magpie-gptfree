@@ -5,6 +5,8 @@
  * Browser automation never bypasses interactive challenges.
  */
 import { runBatch } from "./lib/importer.mjs";
+import { listPool } from "./lib/pool-vault.mjs";
+import { CODEX_BASE, discoverPoolModels, poolFetch } from "./lib/codex-pool.mjs";
 const PROVIDER = "gptfree-import";
 
 export const GPTFreeImportPlugin = async () => ({
@@ -59,5 +61,58 @@ export const GPTFreeImportPlugin = async () => ({
   provider: {
     id: PROVIDER,
     async models() { return {}; },
+  },
+});
+
+/**
+ * Separate, access-only account pool mode.
+ * A JWT is admitted only after Codex /models validates it. A token with no
+ * refresh token is not a permanent login: on expiry the plugin attempts
+ * normal browser OAuth (including user-driven security challenges).
+ */
+export const GPTFreePoolPlugin = async () => ({
+  config: async (cfg) => {
+    cfg.provider ??= {};
+    cfg.provider["gptfree-pool"] ??= {
+      name: "GPTFree Codex Pool (standalone)",
+      npm: "@ai-sdk/openai",
+      api: CODEX_BASE,
+      models: {},
+    };
+  },
+  auth: {
+    provider: "gptfree-pool",
+    maxConcurrency: 2,
+    methods: [{
+      type: "api", keyless: true,
+      label: "启用本地 GPTFree Token 号池",
+      async authorize() {
+        const rows = await listPool();
+        if (!rows.length) return {
+          type: "failed",
+          error: "本地号池为空：请先运行 node bin/import.mjs --mode pool ...",
+        };
+        return {
+          type: "success", key: "local-pool-enabled",
+          metadata: { accountId: "GPTFree local pool" },
+        };
+      },
+    }],
+    async loader(getAuth) {
+      const auth = await getAuth();
+      if (auth?.type !== "api") return {};
+      return {
+        baseURL: CODEX_BASE,
+        apiKey: "local-pool-enabled",
+        fetch: (input, init) => poolFetch(input, init),
+      };
+    },
+  },
+  provider: {
+    id: "gptfree-pool",
+    async models(_provider, { auth } = {}) {
+      if (auth?.type !== "api") return {};
+      return discoverPoolModels();
+    },
   },
 });

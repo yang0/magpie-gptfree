@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { createPoolConnector, POOL_PROVIDER, POOL_MARKER } from "../lib/pool-connection.mjs";
 import { GPTFreePoolPlugin } from "../index.mjs";
 
-const entry = { email: "example@example.com", password: "local", totp: "", accessToken: "sample.token" };
+const entry = { email: "example@example.com", password: "not-stored-owner-password", totp: "", accessToken: "sample.token" };
 function host() {
   const saved = new Map();
   const client = { auth: {

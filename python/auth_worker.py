@@ -23,19 +23,11 @@ import uuid
 from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
-# Ensure the chatgpt2api source directory is in sys.path
+# Resolve only the helpers bundled with GPTFree. No DSH installation,
+# service directory, or environment is consulted.
 SCRIPT_DIR = Path(__file__).resolve().parent
-CANDIDATE_ROOTS = [
-    Path.cwd(),
-    SCRIPT_DIR,
-    SCRIPT_DIR.parent,
-    Path.home() / ".dsh" / "chatgpt2api-native" / "source",
-]
-for candidate in CANDIDATE_ROOTS:
-    if (candidate / "utils" / "sentinel.py").is_file():
-        if str(candidate) not in sys.path:
-            sys.path.insert(0, str(candidate))
-        break
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
 try:
     from curl_cffi import requests
@@ -52,10 +44,7 @@ try:
 except ImportError:
     build_sentinel_token = None
 
-try:
-    from services.config import config
-except ImportError:
-    config = None
+
 
 
 def parse_jwt_payload(t: str) -> dict:
@@ -87,13 +76,6 @@ def resolve_proxy(custom_proxy: str = "") -> str:
     """Resolve proxy like the DSH worker: explicit value then environment/system."""
     if custom_proxy and str(custom_proxy).strip():
         return str(custom_proxy).strip()
-    if config:
-        try:
-            cfg_proxy = config.get_proxy_settings()
-            if cfg_proxy:
-                return cfg_proxy
-        except Exception:
-            pass
     for env_key in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "https_proxy", "http_proxy", "all_proxy"):
         val = os.environ.get(env_key, "").strip()
         if val:

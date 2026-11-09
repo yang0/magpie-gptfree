@@ -67,6 +67,7 @@
     $("startButton").disabled = busy || !preview?.count || !!preview?.errors?.length || !$("consent").checked;
     document.querySelectorAll('input[name="mode"]').forEach((input) => input.disabled = busy);
     $("consent").disabled = busy;
+    $("interactiveLogin").disabled = busy;
     $("dropzone").classList.toggle("disabled", busy);
   }
   function renderPreview(rows) {
@@ -208,11 +209,14 @@
     $("progressFill").style.width = "0%";
     try {
       const mode = document.querySelector('input[name="mode"]:checked')?.value || "pool";
-      await api("start", { mode, consent: true });
+      const loginMode = $("interactiveLogin").checked ? "interactive" : "background";
+      await api("start", { mode, loginMode, consent: true });
       $("progressBox").scrollIntoView({ behavior: "smooth", block: "nearest" });
       stopPolling();
       await status();
-      notice("已开始导入，请在出现登录页面时完成必要验证");
+      notice(loginMode === "background" ?
+        "已在后台开始自动 OAuth/TOTP 登录，不会弹出登录网页；需要额外验证时将显示失败提示" :
+        "已启动人工验证模式；如出现官方登录窗口，请按提示完成安全验证");
     } catch (err) {
       setBusy(false);
       hidden("progressBox", true);

@@ -7,14 +7,14 @@ const showHelp = () => {
 
 用法：
   npx magpie-gptfree --file accounts.txt --dry-run
-  npx magpie-gptfree --file accounts.txt --i-own-these-accounts
+  npx magpie-gptfree --file accounts.txt --i-own-these-accounts --mode pool
   node bin/import.mjs --file accounts.txt --i-own-these-accounts
 
 可选：
   --magpie "C:\\path\\to\\magpie.exe"    指定 Magpie CLI
   --proxy http://127.0.0.1:7890        指定可信的 HTTP(S) 代理
   --dry-run                            只检查 TXT 格式（不登录）
-  --mode native|pool                   native=Magpie 原生导入；pool=短期 Token 号池
+  --mode pool|native                   pool=短期 Token 号池（默认）；native=原生 Codex 导入
   --i-own-these-accounts               确认账号归属/管理权
   --help                               查看帮助
 
@@ -31,7 +31,7 @@ else {
     const result = await runBatch({
       file,
       magpie: get("--magpie") || "magpie",
-      mode: get("--mode") || "native",
+      mode: get("--mode") || "pool",
       proxy: get("--proxy") || "",
       dryRun: args.includes("--dry-run"),
       consent: args.includes("--i-own-these-accounts"),

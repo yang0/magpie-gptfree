@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { request as httpRequest } from "node:http";
 import { createGuiService } from "../lib/gui-service.mjs";
 import { GPTFreePoolPlugin } from "../index.mjs";
 
@@ -100,9 +101,16 @@ test("invalid ticket is rejected; different browser origins and rebinding hosts 
     assert.equal(wrong.status, 410);
     const { session } = await h.open();
     assert.equal((await h.api(session, "preview", { text: "user@example.com----pw" }, "https://other.example")).status, 403);
-    const altered = await fetch(h.base + "/api/status", {
-      headers: { Host: "outside.invalid", Origin: "null", "X-GPTFree-Session": session },
+    // fetch() normalizes the Host header; raw HTTP is needed to test
+    // DNS-rebinding defense against a forged Host.
+    const status = await new Promise((resolve, reject) => {
+      const req = httpRequest(h.base + "/api/status", {
+        method: "GET",
+        headers: { Host: "outside.invalid", Origin: "null", "X-GPTFree-Session": session },
+      }, (res) => { res.resume(); res.on("end", () => resolve(res.statusCode)); });
+      req.on("error", reject);
+      req.end();
     });
-    assert.equal(altered.status, 403);
+    assert.equal(status, 403);
   } finally { await h.close(); }
 });

@@ -66,7 +66,7 @@ npm test
 
 高级 CLI 仍保留在 `bin/import.mjs`，但不再是常规导入入口。
 
-**登录是导入流程的一部分**：只有在官方提示额外安全验证时需要操作登录窗口。Providers 的 GPTFree 入口使用无额外 API Key 的系统文件选择器，选完 TXT 自动开始入池；左侧 Plugins 入口始终在 Magpie 内展示完整 GUI。
+**登录是导入流程的一部分**：只有在官方提示额外安全验证时需要操作登录窗口。Providers 的 GPTFree 入口通过无网页 OAuth 流程使用系统文件选择器，选完 TXT 自动开始入池；左侧 Plugins 入口始终在 Magpie 内展示完整 GUI。
 
 开发记录：[GUI Issue #3](https://github.com/yang0/magpie-gptfree/issues/3) · [原账号池 Issue #1](https://github.com/yang0/magpie-gptfree/issues/1)。
 
@@ -75,7 +75,7 @@ npm test
 ## 参考实现与 Magpie 接口限制
 
 - 社区参考：[Magiczerowxy/magpie-chat](https://github.com/Magiczerowxy/magpie-chat)，使用 `magpie.page`、`magpie.page.service`、仅在 Magpie 的 sandboxed iframe 中导航自身。
-- Magpie 的 Providers 登录 hook **不能直接导航主窗口侧边栏标签**。因此本插件通过官方 `auth.methods` 的 `api + keyless` 钩子打开**本机 OS 文件选择对话框**，不会调用浏览器链接；复杂的导入预览、任务进度与账号管理由左侧原生插件页负责。
+- Magpie 的 Providers 登录 hook **不能直接导航主窗口侧边栏标签**。因此本插件通过官方 `auth.methods` 的 **无 URL OAuth 等待流程**打开本机系统 TXT 文件选择框，不返回任何外部导入网页链接。与普通 API/keyless 登录不同，这个流程有较长的等待时间，首个账号成功后自动结束供应商登录；批量进度由左侧 Magpie 内嵌页显示。
 - 两个入口共用本地导入服务及账号池。Providers 首个成功账号即可完成登录，余下账号继续导入；Magpie 左侧页面显示任务进度。
 - 本实现遵守本机授权界面要求，但 Windows/macOS/Linux 系统对话框、Magpie 宿主与真实账号 OAuth 尚需实测。
 

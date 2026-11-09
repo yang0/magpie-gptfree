@@ -25,7 +25,7 @@
     mail_link_ignored: "邮箱链接已识别",
     failed: "授权失败",
   };
-  let preview = null, lastEvents = 0, polling = null, busy = false;
+  let preview = null, lastSeq = 0, polling = null, busy = false;
   const jobStates = new Map();
 
   function el(tag, className, content) {
@@ -153,13 +153,18 @@
     catch (err) { stopPolling(); notice(err.message, true); return; }
     if (info.state === "idle") return;
     const incoming = info.events || [];
-    if (incoming.length < lastEvents) {
+    if (incoming.length && incoming.at(-1).seq < lastSeq) {
       $("events").replaceChildren();
-      lastEvents = 0;
+      lastSeq = 0;
     }
-    for (const entry of incoming.slice(lastEvents)) addEvent(entry);
-    lastEvents = incoming.length;
+    for (const entry of incoming.filter((event) => event.seq > lastSeq)) addEvent(entry);
+    if (incoming.length) lastSeq = incoming.at(-1).seq;
     if (preview?.rows) renderPreview(preview.rows);
+    hidden("progressBox", false);
+    if (info.state === "running") {
+      setBusy(true);
+      if (!polling) polling = setInterval(status, 850);
+    }
     $("doneCount").textContent = String(info.done || 0);
     $("addedCount").textContent = String(info.result?.added ?? info.added ?? 0);
     $("reusedCount").textContent = String(info.result?.reused ?? info.reused ?? 0);
@@ -187,7 +192,7 @@
     if (!preview || preview.errors.length || !$("consent").checked || busy) return;
     setBusy(true);
     jobStates.clear();
-    lastEvents = 0;
+    lastSeq = 0;
     $("events").replaceChildren();
     hidden("progressBox", false);
     hidden("againButton", true);
@@ -199,7 +204,6 @@
       $("progressBox").scrollIntoView({ behavior: "smooth", block: "nearest" });
       stopPolling();
       await status();
-      polling = setInterval(status, 850);
       notice("已开始导入，请在出现登录页面时完成必要验证");
     } catch (err) {
       setBusy(false);
@@ -305,6 +309,7 @@
     });
     $("refreshAccounts").addEventListener("click", loadPool);
     loadPool();
+    status();
   }
   setup();
 })();

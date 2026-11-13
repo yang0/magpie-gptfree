@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { request as httpRequest } from "node:http";
-import { createGuiService } from "../lib/gui-service.mjs";
+import { createGuiService, startGuiServer } from "../lib/gui-service.mjs";
 import { GPTFreePoolPlugin, GPTFreeGuiPlugin } from "../index.mjs";
 import { nativeImportMethod } from "../lib/provider-native-signin.mjs";
 import { pickAccountTxt, NATIVE_PICKER_COMMANDS } from "../lib/native-file-dialog.mjs";
@@ -298,11 +298,12 @@ test("the only import web UI is Magpie's sandboxed page; old browser tickets are
   } finally { await h.close(); }
 });
 
-test("a GUI port already in use does not fail the plugin load", async () => {
+test("a GUI port held by the previous host neither blocks the plugin load nor loses the page", async () => {
   // A host restart overlaps the previous host for a moment, and the old
   // one still holds the GUI port. The pool's provider side needs no GUI
   // service, so the plugin must load anyway: failing here took the whole
-  // plugin down and left the provider with no endpoint at all.
+  // plugin down and left the provider with no endpoint at all. Once the
+  // old host lets go, the sidebar page must come up without another restart.
   const busy = createGuiService({ port: 0 });
   const address = await busy.listen();
   const home = await mkdtemp(join(tmpdir(), "magpie-gui-busy-"));
@@ -321,11 +322,48 @@ test("a GUI port already in use does not fail the plugin load", async () => {
   try {
     const loaded = await GPTFreeGuiPlugin({ client }, { port: address.port });
     assert.deepEqual(loaded, {});
-    assert(logs.some((l) => l.level === "warn" && /GUI service could not start/.test(l.message)));
+    await busy.close();
+    const gui = await startGuiServer({ port: address.port });
+    assert.equal(gui.listening, true);
+    const status = await new Promise((resolve, reject) => {
+      const req = httpRequest({ host: "127.0.0.1", port: address.port, path: "/ui" }, (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      });
+      req.on("error", reject);
+      req.end();
+    });
+    assert.equal(status, 200);
+    assert(!logs.some((l) => /GUI service could not start/.test(l.message)));
+    await gui.close();
   } finally {
     if (before === undefined) delete process.env.MAGPIE_GPTFREE_HOME;
     else process.env.MAGPIE_GPTFREE_HOME = before;
     await busy.close();
     await rm(home, { recursive: true, force: true });
   }
+});
+
+test("a GUI port that stays busy gives up after the retry window", async () => {
+  const busy = createGuiService({ port: 0 });
+  const address = await busy.listen();
+  try {
+    const started = Date.now();
+    await assert.rejects(startGuiServer({ port: address.port, retryFor: 300, retryEvery: 50 }),
+      /could not bind to 127\.0\.0\.1:\d+ \(port already in use\)/);
+    assert(Date.now() - started >= 300);
+  } finally { await busy.close(); }
+});
+
+test("concurrent GUI starts share one service", async () => {
+  const busy = createGuiService({ port: 0 });
+  const address = await busy.listen();
+  const first = startGuiServer({ port: address.port, retryEvery: 25 });
+  const second = startGuiServer({ port: address.port, retryEvery: 25 });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  await busy.close();
+  const [a, b] = await Promise.all([first, second]);
+  assert.equal(a, b);
+  assert.equal(a.listening, true);
+  await a.close();
 });

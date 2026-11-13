@@ -39,19 +39,15 @@ export const GPTFreeGuiPlugin = async (ctx, options) => {
   if (!Number.isSafeInteger(port) || port < 1 || port > 65535)
     throw new Error("GPT号池 GUI: invalid service port");
   const connection = ensurePoolConnector(ctx) || createPoolConnector(ctx.client);
-  try {
-    await startGuiServer({ port, onPoolChange: () => connection.sync() });
-  } catch (error) {
-    // The GUI port is normally held by the previous host, which is still
-    // shutting down: a host restart overlaps the two for a moment. The
-    // pool's provider side does not need the GUI service, so the plugin
-    // keeps loading and its models hook stays registered. Letting this
-    // throw failed the whole plugin load, which left the provider with no
-    // endpoint at all ("GPT号池 has no endpoint configured") until the
-    // port was freed by hand.
+  // The GUI port is normally held by the previous host, which is still
+  // shutting down: a host restart overlaps the two for a moment.
+  // startGuiServer waits for the port, so the plugin load does not: the
+  // pool's provider side needs no GUI service and its models hook must
+  // register at once ("GPT号池 has no endpoint configured" otherwise).
+  startGuiServer({ port, onPoolChange: () => connection.sync() }).catch(async (error) => {
     const message = "GPT号池 GUI service could not start (" +
       String(error?.message || error) + "); the pool provider stays available, " +
-      "the sidebar page is unavailable until the port is free";
+      "the sidebar page is unavailable until the plugin host restarts";
     try {
       await ctx?.client?.app?.log?.({
         body: { service: "gptfree", level: "warn", message },
@@ -59,7 +55,7 @@ export const GPTFreeGuiPlugin = async (ctx, options) => {
     } catch {
       // A log that cannot be written must not stop the plugin from loading.
     }
-  }
+  });
   // Restore Magpie's per-account local-pool slots automatically after
   // restarting. A corrupt vault must not make the GUI inaccessible.
   try {
